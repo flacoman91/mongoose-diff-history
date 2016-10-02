@@ -123,6 +123,10 @@ describe("diffHistory", function () {
                 expect(histories[0].diff.def[1]).equal("laer");
                 expect(histories[0].user).equal("Mimani");
                 expect(histories[0].reason).equal("to test it");
+                expect(histories[0].createdAt).not.null;
+                expect(histories[0].createdAt).not.undefined;
+                expect(histories[0].updatedAt).not.null;
+                expect(histories[0].updatedAt).not.undefined;
                 expect(histories[0].collectionName).equal(Sample1.modelName);
                 done();
             });
@@ -132,7 +136,7 @@ describe("diffHistory", function () {
             diffHistory.getHistories(Sample1.modelName, sample1._id, [], function (err, historyAudits) {
                 expect(err).to.null;
                 expect(historyAudits.length).equal(1);
-                expect(historyAudits[0].commment).equal("modified def");
+                expect(historyAudits[0].comment).equal("modified def");
                 done();
             })
         });
@@ -176,7 +180,7 @@ describe("diffHistory", function () {
             diffHistory.getHistories(Sample1.modelName, sample1._id, ["ghi"], function (err, historyAudits) {
                 expect(err).to.null;
                 expect(historyAudits.length).equal(1);
-                expect(historyAudits[0].commment).equal("modified ghi from 123 to 1212");
+                expect(historyAudits[0].comment).equal("modified ghi from 123 to 1212");
                 done();
             })
         });
@@ -187,6 +191,7 @@ describe("diffHistory", function () {
         beforeEach(function (done) {
             sample1 = new Sample1({def: "ipsum", ghi: 123});
             sample1.save(function (err, savedSample) {
+                expect(err).to.null;
                 Sample1.findOneAndUpdate({def: "ipsum"}, {ghi: 323, def: "hey  hye"}, {__user: "Mimani", __reason: "Mimani updated this also" }, function (err, updated) {
                     expect(err).to.null;
                     done();
@@ -213,7 +218,7 @@ describe("diffHistory", function () {
             diffHistory.getHistories(Sample1.modelName, sample1._id, ["ghi"], function (err, historyAudits) {
                 expect(err).to.null;
                 expect(historyAudits.length).equal(1);
-                expect(historyAudits[0].commment).equal("modified def, ghi from 123 to 323");
+                expect(historyAudits[0].comment).equal("modified def, ghi from 123 to 323");
                 done();
             })
         });
@@ -261,10 +266,12 @@ describe("diffHistory", function () {
             diffHistory.getHistories(Sample1.modelName, sample1._id, ["ghi"], function (err, historyAudits) {
                 expect(err).to.null;
                 expect(historyAudits.length).equal(2);
-                expect(historyAudits[0].commment).equal("modified def, ghi from 123 to 323");
-                expect(historyAudits[1].commment).to.contain("ghi from 323 to 0");
-                expect(historyAudits[1].commment).to.contain("abc");
-                expect(historyAudits[1].commment).to.contain("def");
+                expect(historyAudits[0].comment).equal("modified def, ghi from 123 to 323");
+                expect(historyAudits[1].comment).to.contain("ghi from 323 to 0");
+                expect(historyAudits[1].comment).to.contain("abc");
+                expect(historyAudits[1].comment).to.contain("def");
+                expect(historyAudits[1].changedAt).not.null;
+                expect(historyAudits[1].updatedAt).not.null;
                 done();
             })
         });
@@ -283,6 +290,38 @@ describe("diffHistory", function () {
                 expect({}).deep.equal(oldObject);
                 done();
             })
+        });
+    });
+
+    describe("plugin: Bug: Wrong version", function () {
+        var sample1, sample2;
+        beforeEach(function (done) {
+            sample1 = new Sample1({def: "ipsum", ghi: 123});
+            sample1.save(function (err, savedSample) {
+                expect(err).to.null;
+                Sample1.findOneAndUpdate({def: "ipsum"}, {ghi: 323, def: "hey  hye"}, {__user: "Mimani", __reason: "Mimani updated this also" }, function (err, updated) {
+                    expect(err).to.null;
+                    Sample1.findOneAndUpdate({def: "hey  hye"}, {ghi: 1212, def: "hey  hye"}, {__user: "Mimani", __reason: "Mimani updated this also" }, function (err, updated) {
+                        expect(err).to.null;
+                        sample2 = new Sample1({def: "lorum", ghi: 345});
+                        sample2.save(function (err, savedSample) {
+                            expect(err).to.null;
+                            Sample1.findOneAndUpdate({def: "lorum"}, {ghi: 1919}, {__user: "Mimani", __reason: "Mimani updated this also" }, function (err, updated) {
+                                expect(err).to.null;
+                                done();
+                            })
+                        })
+                    })
+                })
+            })
+        });
+
+        it("should assign correct version to diff history", function (done) {
+            History.findOne({collectionId: sample2._id}, function (err, history) {
+                expect(err).to.null;
+                expect(history.version).equal(0);
+                done();
+            });
         });
     });
 
